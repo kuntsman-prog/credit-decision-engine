@@ -1,133 +1,135 @@
-# Архитектура: от демо к промышленной платформе
+# Architecture: from demo to production platform
 
-Демо работает в одном процессе, но разделено на те же компоненты, что и целевая микросервисная архитектура. Шина событий в коде повторяет топики Kafka, интеграции оформлены как порты и адаптеры, правила и модели версионируются отдельно от кода.
+**English** | [Русский](ARCHITECTURE.ru.md)
 
-## 1. Контекст (C4, уровень 1)
+The demo runs in a single process, but it is split into the same components as the target microservice architecture. The event bus in code mirrors Kafka topics, integrations follow the ports-and-adapters pattern, and rules and models are versioned separately from code.
+
+## 1. Context (C4, level 1)
 
 ```mermaid
 flowchart LR
-    RM[Клиентский менеджер<br/>или онлайн-канал] -->|заявка| CDP[Платформа кредитных решений]
-    AN[Кредитный аналитик] -->|ручное рассмотрение REFER| CDP
-    CDP -->|кредитный отчёт| BKI[Бюро кредитных историй]
-    CDP -->|обороты, остатки, продукты| CBS[АБС банка]
-    CDP -->|реестры, отчётность компаний| EXT[Внешние источники данных]
-    CDP -->|решения, признаки, исходы| DWH[(DWH и ML-платформа)]
-    DWH -->|новые версии моделей| CDP
-    CDP -->|выдача по одобренным| CBS
+    RM[Relationship manager<br/>or online channel] -->|application| CDP[Credit decisioning platform]
+    AN[Credit analyst] -->|manual review REFER| CDP
+    CDP -->|credit report| BKI[Credit bureau]
+    CDP -->|turnover, balances, products| CBS[Core banking system]
+    CDP -->|registries, company filings| EXT[External data providers]
+    CDP -->|decisions, features, outcomes| DWH[(DWH and ML platform)]
+    DWH -->|new model versions| CDP
+    CDP -->|disbursement of approved loans| CBS
 ```
 
-## 2. Контейнеры (C4, уровень 2)
+## 2. Containers (C4, level 2)
 
 ```mermaid
 flowchart TB
-    API[Application API<br/>приём заявок, идемпотентность] -->|application.received| K{{Kafka}}
-    K --> ENR[Enrichment Service<br/>адаптеры бюро и АБС,<br/>кэш отчётов, circuit breaker]
+    API[Application API<br/>intake, idempotency] -->|application.received| K{{Kafka}}
+    K --> ENR[Enrichment Service<br/>bureau and CBS adapters,<br/>report cache, circuit breaker]
     ENR -->|application.enriched| K
-    K --> DEC[Decision Service<br/>правила, политика, лимит]
-    DEC -->|синхронно| MS[Model Serving<br/>champion]
+    K --> DEC[Decision Service<br/>rules, policy, limit]
+    DEC -->|synchronous| MS[Model Serving<br/>champion]
     DEC -->|decision.made| K
     K --> SH[Shadow Scoring<br/>challenger]
-    K --> AUD[Audit Service<br/>неизменяемый журнал]
-    K --> WQ[Очередь ручного<br/>рассмотрения]
-    K --> MON[Monitoring<br/>PSI, доля REFER, override]
-    RR[(Репозиторий правил<br/>версии, ревью)] --> DEC
-    MR[(Реестр моделей<br/>карточки, валидация)] --> MS
+    K --> AUD[Audit Service<br/>immutable log]
+    K --> WQ[Manual review<br/>queue]
+    K --> MON[Monitoring<br/>PSI, REFER share, overrides]
+    RR[(Rules repository<br/>versions, review)] --> DEC
+    MR[(Model registry<br/>model cards, validation)] --> MS
     MR --> SH
 ```
 
-| Компонент в демо | Сервис в целевой архитектуре |
+| Component in the demo | Service in the target architecture |
 |---|---|
 | `models.Application`, `app.py` | Application API |
-| `integrations.py` | Enrichment Service с адаптерами под каждое бюро и АБС |
-| `rules.py`, `config/rules.yaml` | Decision Service и репозиторий правил |
-| `scoring.py`, `models/*.json` | Model Serving и реестр моделей |
-| `engine._shadow_challenger` | Shadow Scoring, отдельный подписчик |
-| `audit.py` | Audit Service с неизменяемым хранилищем |
-| `monitoring.py` | Monitoring, регулярные отчёты по стабильности |
+| `integrations.py` | Enrichment Service with an adapter per bureau and core banking system |
+| `rules.py`, `config/rules.yaml` | Decision Service and rules repository |
+| `scoring.py`, `models/*.json` | Model Serving and model registry |
+| `engine._shadow_challenger` | Shadow Scoring, a separate subscriber |
+| `audit.py` | Audit Service with immutable storage |
+| `monitoring.py` | Monitoring, regular stability reports |
 | `events.py` | Kafka |
 
-## 3. Обработка заявки
+## 3. Processing an application
 
 ```mermaid
 sequenceDiagram
-    participant C as Канал
+    participant C as Channel
     participant A as Application API
     participant E as Enrichment
-    participant B as Бюро
-    participant S as АБС
+    participant B as Bureau
+    participant S as Core banking
     participant D as Decision
     participant M as Model Serving
     C->>A: POST /v1/applications (application_id)
-    A->>A: проверка идемпотентности
+    A->>A: idempotency check
     A->>E: application.received
-    par параллельно, с таймаутом
-        E->>B: кредитный отчёт по ИНН
-        E->>S: профиль клиента
+    par in parallel, with timeout
+        E->>B: credit report by tax ID
+        E->>S: customer profile
     end
-    E->>D: application.enriched (признаки)
-    D->>D: стоп-факторы и правила
-    D->>M: PD, класс, факторы риска
-    D->>D: политика и лимит по DSCR и залогу
-    D-->>C: решение с причинами
-    D->>A: decision.made (аудит, теневая модель, мониторинг)
+    E->>D: application.enriched (features)
+    D->>D: stop factors and rules
+    D->>M: PD, grade, risk factors
+    D->>D: policy and limit by DSCR and collateral
+    D-->>C: decision with reasons
+    D->>A: decision.made (audit, shadow model, monitoring)
 ```
 
-Целевое время автоматического решения: до 3 секунд для 95% заявок. Самая долгая часть: ответ бюро, поэтому его вызов параллелится с АБС и ограничен таймаутом.
+Target time for an automated decision: under 3 seconds for 95% of applications. The slowest part is the bureau response, so it is called in parallel with core banking and bounded by a timeout.
 
-## 4. События
+## 4. Events
 
-| Топик | Ключ | Содержимое | Подписчики |
+| Topic | Key | Payload | Subscribers |
 |---|---|---|---|
-| `credit.application.received` | application_id | заявка | Enrichment |
-| `credit.application.enriched` | application_id | заявка, данные бюро и АБС, признаки | Decision |
-| `credit.decision.made` | application_id | решение, версии правил и модели, причины | Audit, Shadow, Monitoring, очередь ручного рассмотрения, выдача |
-| `credit.shadow.scored` | application_id | оценка challenger, совпадение с champion | Monitoring, валидация моделей |
+| `credit.application.received` | application_id | application | Enrichment |
+| `credit.application.enriched` | application_id | application, bureau and core banking data, features | Decision |
+| `credit.decision.made` | application_id | decision, ruleset and model versions, reasons | Audit, Shadow, Monitoring, manual review queue, disbursement |
+| `credit.shadow.scored` | application_id | challenger score, agreement with champion | Monitoring, model validation |
 
-Ключ application_id гарантирует порядок событий одной заявки в одной партиции. Схемы событий хранятся в реестре схем с проверкой обратной совместимости, чтобы изменение формата одним сервисом не ломало подписчиков. Для надёжной публикации решения используется outbox: решение и событие записываются в одной транзакции в базу сервиса, а отдельный процесс переносит событие в Kafka.
+Keying by application_id guarantees the order of one application's events within a partition. Event schemas are kept in a schema registry with backward-compatibility checks, so a format change by one service does not break subscribers. For reliable publication of decisions an outbox is used: the decision and the event are written in one transaction to the service database, and a separate process moves the event to Kafka.
 
-## 5. Интеграционные паттерны
+## 5. Integration patterns
 
-| Паттерн | Зачем | В демо |
+| Pattern | Why | In the demo |
 |---|---|---|
-| Таймаут и ограниченные повторы | бюро отвечает секундами, заявка не должна висеть | `resilient_call` |
-| Circuit breaker | при сбое бюро не нагружать его повторами и не ждать таймаута на каждой заявке | `CircuitBreaker`, тест с часами |
-| Безопасный отказ | сбой источника или модели ведёт к ручному рассмотрению, а не к одобрению | тест `test_bureau_failure_never_auto_approves` |
-| Идемпотентность | повторная отправка заявки не создаёт второе решение и второй запрос в бюро | тест `test_idempotent_resubmission` |
-| Кэш отчётов бюро | запрос в бюро платный и виден в кредитной истории; повторная заявка за короткий срок использует сохранённый отчёт | описано, не реализовано |
-| Порты и адаптеры | смена бюро или АБС меняет адаптер, а не движок | `BureauClient`, `CoreBankingClient` |
-| Outbox | согласованность базы решений и событий | описано, не реализовано |
+| Timeout and bounded retries | the bureau responds in seconds; an application must not hang | `resilient_call` |
+| Circuit breaker | when the bureau fails, do not hammer it with retries or wait for a timeout on every application | `CircuitBreaker`, test with a fake clock |
+| Fail-safe | a data source or model failure leads to manual review, never to approval | test `test_bureau_failure_never_auto_approves` |
+| Idempotency | resubmitting an application creates neither a second decision nor a second bureau inquiry | test `test_idempotent_resubmission` |
+| Bureau report cache | a bureau inquiry costs money and appears in the credit history; a repeat application within a short period reuses the stored report | described, not implemented |
+| Ports and adapters | changing the bureau or core banking system changes an adapter, not the engine | `BureauClient`, `CoreBankingClient` |
+| Outbox | consistency between the decision database and events | described, not implemented |
 
-## 6. Нефункциональные требования
+## 6. Non-functional requirements
 
-| Требование | Решение |
+| Requirement | Solution |
 |---|---|
-| Время решения до 3 с для 95% заявок | параллельные вызовы, таймауты, кэш бюро, модель в памяти сервиса |
-| Доступность | stateless-сервисы в Kubernetes, масштабирование по отставанию консьюмеров Kafka |
-| Воспроизводимость решения | в аудите хэш входа, версия правил, версия модели, признаки |
-| Минимизация данных | ИНН в журнале только в виде хэша, полные данные в защищённом хранилище заявок |
-| Изменение политики без релиза | правила в YAML через ревью и версию набора, валидация при загрузке |
-| Объяснимость | вклад каждого признака в решение, причины на языке аналитика |
+| Decision within 3 s for 95% of applications | parallel calls, timeouts, bureau cache, model in service memory |
+| Availability | stateless services in Kubernetes, scaling on Kafka consumer lag |
+| Reproducible decisions | the audit stores input hash, ruleset version, model version, features |
+| Data minimization | tax ID in the log only as a hash, full data in a protected application store |
+| Policy changes without a release | rules in YAML through review and ruleset versioning, validation at load time |
+| Explainability | each feature's contribution to the decision, reasons in analyst language |
 
-## 7. Управление модельным риском
+## 7. Model risk management
 
 ```mermaid
 flowchart LR
-    DEV[Разработка<br/>и обучение] --> VAL[Независимая<br/>валидация]
-    VAL --> COM[Комитет<br/>по моделям]
-    COM --> SHADOW[Теневой режим<br/>challenger]
-    SHADOW --> PROM[Перевод<br/>в champion]
-    PROM --> MON[Мониторинг<br/>PSI, бэктест, override]
-    MON -->|деградация| DEV
+    DEV[Development<br/>and training] --> VAL[Independent<br/>validation]
+    VAL --> COM[Model<br/>committee]
+    COM --> SHADOW[Shadow mode<br/>challenger]
+    SHADOW --> PROM[Promotion<br/>to champion]
+    PROM --> MON[Monitoring<br/>PSI, backtest, overrides]
+    MON -->|degradation| DEV
 ```
 
-- **Версионирование.** Модель хранится с версией, датой обучения, метриками на отложенной выборке и распределениями признаков для мониторинга.
-- **Теневой режим.** Новая версия оценивает реальный поток заявок, но не влияет на решения. Перевод в основную модель происходит по результатам сравнения и решению комитета.
-- **Мониторинг.** PSI по каждому признаку, доля ручных рассмотрений, доля решений аналитиков вопреки модели (override), фактический дефолт по классам.
-- **Регулирование.** Скоринг юридических лиц не входит в перечень систем ИИ высокого риска EU AI Act: Annex III относится к оценке кредитоспособности физических лиц. Если движок применять к индивидуальным предпринимателям и физическим лицам, действуют требования к системам высокого риска: управление рисками, качество данных, документирование, человеческий контроль. Для банка любая скоринговая модель остаётся объектом управления модельным риском (ориентир: руководство SR 11-7 ФРС США) и требований национального регулятора.
+- **Versioning.** A model is stored with its version, training date, holdout metrics and feature distributions for monitoring.
+- **Shadow mode.** A new version scores the real application flow without affecting decisions. Promotion to champion follows the comparison and a committee decision.
+- **Monitoring.** PSI per feature, share of manual reviews, share of analyst decisions against the model (overrides), actual default rate per grade.
+- **Regulation.** Scoring of legal entities is not on the EU AI Act list of high-risk AI systems: Annex III covers creditworthiness assessment of natural persons. If the engine were applied to sole proprietors and individuals, high-risk requirements would apply: risk management, data quality, documentation, human oversight. For a bank, any scoring model remains subject to model risk management (reference: US Federal Reserve guidance SR 11-7) and the national regulator's requirements.
 
-## 8. Что не реализовано в демо
+## 8. Not implemented in the demo
 
-- реальные адаптеры бюро и АБС, кэш кредитных отчётов, outbox;
-- отдельные сервисы и Kafka вместо шины в одном процессе;
-- интерфейс кредитного аналитика и фиксация его решений (override);
-- обучение на реальных данных: модели обучены на синтетическом портфеле.
+- real bureau and core banking adapters, credit report cache, outbox;
+- separate services and Kafka instead of an in-process bus;
+- a credit analyst interface and recording of their decisions (overrides);
+- training on real data: the models are trained on a synthetic portfolio.
