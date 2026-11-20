@@ -1,0 +1,15 @@
+{
+  "application_id": "A-007",
+  "tax_id": "301234567",
+  "company_name": "Мебель Комфорт",
+  "industry": "производство мебели",
+  "years_in_business": 2,
+  "annual_revenue": 1500000,
+  "ebitda": 180000,
+  "existing_debt_service_annual": 30000,
+  "total_debt": 500000,
+  "requested_amount": 200000,
+  "term_months": 36,
+  "purpose": "working_capital",
+  "collateral_value": 210000
+}

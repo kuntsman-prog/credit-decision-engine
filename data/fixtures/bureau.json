@@ -1,0 +1,36 @@
+{
+  "301234561": {
+    "active_loans": 2,
+    "inquiries_6m": 1
+  },
+  "301234562": {
+    "active_loans": 1,
+    "inquiries_6m": 2
+  },
+  "301234563": {
+    "active_default": true,
+    "delinquencies_30_12m": 3,
+    "delinquencies_90_12m": 1,
+    "active_loans": 4,
+    "inquiries_6m": 3
+  },
+  "301234564": {
+    "active_loans": 3,
+    "inquiries_6m": 2,
+    "delinquencies_30_12m": 0
+  },
+  "301234565": {
+    "active_loans": 2,
+    "inquiries_6m": 1,
+    "latency_s": 1.5
+  },
+  "301234566": {
+    "active_loans": 1,
+    "inquiries_6m": 1
+  },
+  "301234567": {
+    "active_loans": 3,
+    "inquiries_6m": 5,
+    "delinquencies_30_12m": 2
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "application_id": "A-001",
+  "tax_id": "301234561",
+  "company_name": "Агро Логистик",
+  "industry": "логистика",
+  "years_in_business": 12,
+  "annual_revenue": 12000000,
+  "ebitda": 2400000,
+  "existing_debt_service_annual": 300000,
+  "total_debt": 1000000,
+  "requested_amount": 1000000,
+  "term_months": 36,
+  "purpose": "fleet_purchase",
+  "collateral_value": 2000000
+}

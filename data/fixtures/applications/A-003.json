@@ -1,0 +1,15 @@
+{
+  "application_id": "A-003",
+  "tax_id": "301234563",
+  "company_name": "СтройМонтаж Восток",
+  "industry": "строительство",
+  "years_in_business": 9,
+  "annual_revenue": 7000000,
+  "ebitda": 1100000,
+  "existing_debt_service_annual": 250000,
+  "total_debt": 1800000,
+  "requested_amount": 600000,
+  "term_months": 24,
+  "purpose": "working_capital",
+  "collateral_value": 1000000
+}

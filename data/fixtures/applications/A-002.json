@@ -1,0 +1,15 @@
+{
+  "application_id": "A-002",
+  "tax_id": "301234562",
+  "company_name": "Текстиль Плюс",
+  "industry": "лёгкая промышленность",
+  "years_in_business": 12,
+  "annual_revenue": 10000000,
+  "ebitda": 850000,
+  "existing_debt_service_annual": 100000,
+  "total_debt": 400000,
+  "requested_amount": 1400000,
+  "term_months": 36,
+  "purpose": "working_capital",
+  "collateral_value": 2500000
+}

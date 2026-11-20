@@ -1,0 +1,38 @@
+{
+  "301234561": {
+    "is_existing_client": true,
+    "turnover_12m": 11000000,
+    "avg_balance_12m": 600000,
+    "overdraft_days_12m": 5
+  },
+  "301234562": {
+    "is_existing_client": true,
+    "turnover_12m": 9500000,
+    "avg_balance_12m": 150000,
+    "overdraft_days_12m": 20
+  },
+  "301234563": {
+    "is_existing_client": true,
+    "turnover_12m": 6000000,
+    "avg_balance_12m": 80000,
+    "overdraft_days_12m": 90
+  },
+  "301234564": {
+    "is_existing_client": true,
+    "turnover_12m": 7500000,
+    "avg_balance_12m": 300000,
+    "overdraft_days_12m": 10
+  },
+  "301234565": {
+    "is_existing_client": true,
+    "turnover_12m": 19000000,
+    "avg_balance_12m": 1200000,
+    "overdraft_days_12m": 0
+  },
+  "301234567": {
+    "is_existing_client": true,
+    "turnover_12m": 1300000,
+    "avg_balance_12m": 20000,
+    "overdraft_days_12m": 45
+  }
+}

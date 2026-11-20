@@ -1,0 +1,15 @@
+{
+  "application_id": "A-006",
+  "tax_id": "301234566",
+  "company_name": "Солар Энерджи Ташкент",
+  "industry": "энергетика",
+  "years_in_business": 6,
+  "annual_revenue": 9000000,
+  "ebitda": 1800000,
+  "existing_debt_service_annual": 200000,
+  "total_debt": 900000,
+  "requested_amount": 1200000,
+  "term_months": 48,
+  "purpose": "equipment",
+  "collateral_value": 2500000
+}

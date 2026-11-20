@@ -1,0 +1,67 @@
+# Правила кредитной политики для юридических лиц.
+# stop_factor: заявка отклоняется независимо от скоринга.
+# refer: заявка уходит на ручное рассмотрение кредитным аналитиком.
+# Условия внутри правила объединяются через И. Поля: application, bureau, cbs, features.
+version: "2026.11-1"
+
+rules:
+  - id: SF-01
+    kind: stop_factor
+    reason: Действующий дефолт по данным бюро кредитных историй
+    when:
+      - {field: bureau.active_default, op: eq, value: true}
+
+  - id: SF-02
+    kind: stop_factor
+    reason: Просрочка свыше 90 дней за последние 12 месяцев
+    when:
+      - {field: bureau.delinquencies_90_12m, op: gt, value: 0}
+
+  - id: SF-03
+    kind: stop_factor
+    reason: Компания работает меньше года
+    when:
+      - {field: application.years_in_business, op: lt, value: 1}
+
+  - id: SF-04
+    kind: stop_factor
+    reason: EBITDA не покрывает платежи по долгу с учётом нового кредита (DSCR ниже 1,0)
+    when:
+      - {field: features.dscr, op: lt, value: 1.0}
+
+  - id: SF-05
+    kind: stop_factor
+    reason: Цель кредита не входит в кредитную политику
+    when:
+      - {field: application.purpose, op: in, value: [speculative_trading, crypto_assets]}
+
+  - id: RF-01
+    kind: refer
+    reason: Сумма выше лимита автоматического решения, нужен кредитный комитет
+    when:
+      - {field: application.requested_amount, op: gt, value: 2000000}
+
+  - id: RF-02
+    kind: refer
+    reason: Кредит превышает 80% стоимости залога (LTV выше 0,8)
+    when:
+      - {field: features.ltv, op: gt, value: 0.8}
+
+  - id: RF-03
+    kind: refer
+    reason: Много запросов в бюро за полгода, возможен активный поиск финансирования
+    when:
+      - {field: bureau.inquiries_6m, op: gte, value: 6}
+
+  - id: RF-04
+    kind: refer
+    reason: Новый клиент с крупной суммой, нужна проверка оборотов в других банках
+    when:
+      - {field: cbs.is_existing_client, op: eq, value: false}
+      - {field: application.requested_amount, op: gt, value: 500000}
+
+  - id: RF-05
+    kind: refer
+    reason: Частое использование овердрафта за последний год
+    when:
+      - {field: cbs.overdraft_days_12m, op: gt, value: 60}
